@@ -1,0 +1,318 @@
+From f65467396905454fb211f6bbfd8783ebeb21ab70 Mon Sep 17 00:00:00 2001
+From: AmardoSolutions <50075051+Amardoo@users.noreply.github.com>
+Date: Sat, 13 Sep 2025 20:13:07 +0000
+Subject: [PATCH] Fix templates and improve dashboard/reports handling
+
+---
+ app.py                   | 84 ++++++++++++++++++++++++++++++++++++++++
+ templates/dashboard.html | 73 ++++++++++++++++++++++++++++++++++
+ templates/form.html      | 32 +++++++++++++++
+ templates/reports.html   | 82 +++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 271 insertions(+)
+ create mode 100644 app.py
+ create mode 100644 templates/dashboard.html
+ create mode 100644 templates/form.html
+ create mode 100644 templates/reports.html
+
+diff --git a/app.py b/app.py
+new file mode 100644
+index 0000000..86b863c
+--- /dev/null
++++ b/app.py
+@@ -0,0 +1,84 @@
++# Simple Flask app to demonstrate FMEA with SQLite database
++# Includes form page, dashboard, and reports page
++# Uses Chart.js for charts and jsPDF for PDF export
++# Run with: python app.py
++# Access at: http://127.0.0.1:5000/
++
++from flask import Flask, render_template, request, jsonify
++import sqlite3
++import pandas as pd
++
++app = Flask(__name__)
++
++# Initialize database
++def init_db():
++    conn = sqlite3.connect('fmea.db')
++    c = conn.cursor()
++    c.execute('''CREATE TABLE IF NOT EXISTS failure_modes
++                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
++                  failure_mode TEXT,
++                  s INTEGER,
++                  o INTEGER,
++                  d INTEGER,
++                  rpn INTEGER)''')
++    conn.commit()
++    conn.close()
++
++# Retrieve all data
++def get_all_data():
++    conn = sqlite3.connect('fmea.db')
++    c = conn.cursor()
++    c.execute('SELECT id, failure_mode, s, o, d, rpn FROM failure_modes ORDER BY rpn DESC')
++    rows = c.fetchall()
++    data = [{'id': row[0], 'Failure Mode': row[1], 'S': row[2], 'O': row[3], 'D': row[4], 'RPN': row[5]} for row in rows]
++    conn.close()
++    return data
++
++# Get statistics
++def get_stats(data):
++    if not data:
++        return {'average': 0, 'max': 0, 'min': 0, 'high_risk': 0}
++    df = pd.DataFrame(data)
++    avg_rpn = df['RPN'].mean()
++    max_rpn = df['RPN'].max()
++    min_rpn = df['RPN'].min()
++    high_risk = len(df[df['RPN'] > 60])
++    return {'average': round(avg_rpn, 2), 'max': max_rpn, 'min': min_rpn, 'high_risk': high_risk}
++
++@app.route('/', methods=['GET', 'POST'])
++def form():
++    if request.method == 'POST':
++        name = request.form['failure_mode']
++        s = int(request.form['severity'])
++        o = int(request.form['occurrence'])
++        d = int(request.form['detectability'])
++        if not (1 <= s <= 10 and 1 <= o <= 10 and 1 <= d <= 10):
++            return render_template('form.html', error='Values must be between 1 and 10')
++        rpn = s * o * d
++        conn = sqlite3.connect('fmea.db')
++        c = conn.cursor()
++        c.execute('INSERT INTO failure_modes (failure_mode, s, o, d, rpn) VALUES (?, ?, ?, ?, ?)',
++                  (name, s, o, d, rpn))
++        conn.commit()
++        conn.close()
++    return render_template('form.html')
++
++@app.route('/dashboard')
++def dashboard():
++    data = get_all_data()
++    stats = get_stats(data)
++    top_5 = sorted(data, key=lambda x: x['RPN'], reverse=True)[:5]
++    risk_dist = {'Low (0-30)': len([d for d in data if d['RPN'] <= 30]),
++                 'Medium (31-60)': len([d for d in data if 31 <= d['RPN'] <= 60]),
++                 'High (>60)': len([d for d in data if d['RPN'] > 60])}
++    return render_template('dashboard.html', data=data, stats=stats, top_5=top_5, risk_dist=risk_dist)
++
++@app.route('/reports')
++def reports():
++    data = get_all_data()
++    stats = get_stats(data)
++    return render_template('reports.html', data=data, stats=stats)
++
++if __name__ == '__main__':
++    init_db()
++    app.run(debug=True)
+\ No newline at end of file
+diff --git a/templates/dashboard.html b/templates/dashboard.html
+new file mode 100644
+index 0000000..0f5dfe5
+--- /dev/null
++++ b/templates/dashboard.html
+@@ -0,0 +1,73 @@
++<!DOCTYPE html>
++<html lang="en">
++<head>
++    <meta charset="UTF-8">
++    <title>Dashboard</title>
++    <style>
++        body { font-family: Arial, sans-serif; margin: 20px; }
++        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
++        th, td { border: 1px solid black; padding: 8px; text-align: left; }
++        th { background-color: #f2f2f2; }
++        .chart-container { width: 50%; margin: 20px auto; }
++    </style>
++    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
++</head>
++<body>
++    <h1>FMEA Dashboard</h1>
++    <a href="/">Data Entry Form</a> | <a href="/reports">Reports</a>
++    <h2>Failure Modes Table</h2>
++    <table>
++        <tr>
++            <th>Failure Mode</th>
++            <th>S</th>
++            <th>O</th>
++            <th>D</th>
++            <th>RPN</th>
++        </tr>
++        {% for mode in data %}
++        <tr style="background-color: {% if mode.RPN <= 30 %}#90ee90{% elif mode.RPN <= 60 %}#ffff99{% else %}#ffcccc{% endif %};">
++            <td>{{ mode['Failure Mode'] }}</td>
++            <td>{{ mode.S }}</td>
++            <td>{{ mode.O }}</td>
++            <td>{{ mode.D }}</td>
++            <td>{{ mode.RPN }}</td>
++        </tr>
++        {% endfor %}
++    </table>
++    <div class="chart-container">
++        <canvas id="top5Chart"></canvas>
++    </div>
++    <div class="chart-container">
++        <canvas id="riskChart"></canvas>
++    </div>
++    <script>
++        const top5Ctx = document.getElementById('top5Chart').getContext('2d');
++        new Chart(top5Ctx, {
++            type: 'bar',
++            data: {
++                labels: [{% for item in top_5 %}'{{ item['Failure Mode'] | truncate(20) }}',{% endfor %}],
++                datasets: [{
++                    label: 'Top 5 RPN',
++                    data: [{% for item in top_5 %}{{ item.RPN }},{% endfor %}],
++                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
++                    borderColor: 'rgba(54, 162, 235, 1)',
++                    borderWidth: 1
++                }]
++            },
++            options: { scales: { y: { beginAtZero: true } } }
++        });
++
++        const riskCtx = document.getElementById('riskChart').getContext('2d');
++        new Chart(riskCtx, {
++            type: 'pie',
++            data: {
++                labels: ['Low (0-30)', 'Medium (31-60)', 'High (>60)'],
++                datasets: [{
++                    data: [{{ risk_dist['Low (0-30)'] }}, {{ risk_dist['Medium (31-60)'] }}, {{ risk_dist['High (>60)'] }}],
++                    backgroundColor: ['#90ee90', '#ffff99', '#ffcccc']
++                }]
++            }
++        });
++    </script>
++</body>
++</html>
+\ No newline at end of file
+diff --git a/templates/form.html b/templates/form.html
+new file mode 100644
+index 0000000..fd22548
+--- /dev/null
++++ b/templates/form.html
+@@ -0,0 +1,32 @@
++<!DOCTYPE html>
++<html lang="en">
++<head>
++    <meta charset="UTF-8">
++    <title>FMEA Data Entry Form</title>
++    <style>
++        body { font-family: Arial, sans-serif; margin: 20px; }
++        form { max-width: 400px; }
++        label { display: block; margin: 10px 0 5px; }
++        input { width: 100%; padding: 8px; }
++        .error { color: red; }
++    </style>
++</head>
++<body>
++    <h1>FMEA Data Entry Form</h1>
++    <a href="/dashboard">Go to Dashboard</a> | <a href="/reports">Reports</a>
++    <form method="post">
++        <label for="failure_mode">Failure Mode:</label>
++        <input type="text" id="failure_mode" name="failure_mode" required>
++        <label for="severity">Severity (1-10):</label>
++        <input type="number" id="severity" name="severity" min="1" max="10" required>
++        <label for="occurrence">Occurrence (1-10):</label>
++        <input type="number" id="occurrence" name="occurrence" min="1" max="10" required>
++        <label for="detectability">Detection (1-10):</label>
++        <input type="number" id="detectability" name="detectability" min="1" max="10" required>
++        <button type="submit">Calculate RPN</button>
++    </form>
++    {% if error %}
++        <p class="error">{{ error }}</p>
++    {% endif %}
++</body>
++</html>
+\ No newline at end of file
+diff --git a/templates/reports.html b/templates/reports.html
+new file mode 100644
+index 0000000..f1c6bf5
+--- /dev/null
++++ b/templates/reports.html
+@@ -0,0 +1,82 @@
++<!DOCTYPE html>
++<html lang="en">
++<head>
++    <meta charset="UTF-8">
++    <title>Reports</title>
++    <style>
++        body { font-family: Arial, sans-serif; margin: 20px; }
++        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
++        th, td { border: 1px solid black; padding: 8px; text-align: left; }
++        th { background-color: #f2f2f2; }
++    </style>
++    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
++</head>
++<body>
++    <h1>FMEA Reports</h1>
++    <a href="/">Data Entry Form</a> | <a href="/dashboard">Dashboard</a>
++    <button onclick="exportToPDF()">Export to PDF</button>
++    <button onclick="exportToCSV()">Export to Excel (CSV)</button>
++    <h2>Failure Modes Table</h2>
++    <table>
++        <tr>
++            <th>Failure Mode</th>
++            <th>S</th>
++            <th>O</th>
++            <th>D</th>
++            <th>RPN</th>
++        </tr>
++        {% for mode in data %}
++        <tr>
++            <td>{{ mode['Failure Mode'] }}</td>
++            <td>{{ mode.S }}</td>
++            <td>{{ mode.O }}</td>
++            <td>{{ mode.D }}</td>
++            <td>{{ mode.RPN }}</td>
++        </tr>
++        {% endfor %}
++    </table>
++    <h2>Statistical Summary</h2>
++    <p>Average: {{ stats.average }}</p>
++    <p>Maximum: {{ stats.max }}</p>
++    <p>Minimum: {{ stats.min }}</p>
++    <p>Number of High Risks (>60): {{ stats.high_risk }}</p>
++    <script>
++        const data = [
++            {% for item in data %}
++            {name: '{{ item['Failure Mode'] | replace("'", "\\'") }}', s: {{ item.S }}, o: {{ item.O }}, d: {{ item.D }}, rpn: {{ item.RPN }}},
++            {% endfor %}
++        ];
++
++        function exportToCSV() {
++            let csv = 'Failure Mode,S,O,D,RPN\n';
++            data.forEach(row => {
++                csv += `${row.name},${row.s},${row.o},${row.d},${row.rpn}\n`;
++            });
++            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
++            const url = window.URL.createObjectURL(blob);
++            const a = document.createElement('a');
++            a.href = url;
++            a.download = 'fmea_report.csv';
++            a.click();
++        }
++
++        function exportToPDF() {
++            const { jsPDF } = window.jspdf;
++            const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
++            doc.setFontSize(16);
++            doc.text('FMEA Report', 105, 20, { align: 'center' });
++            let y = 30;
++            data.forEach(row => {
++                doc.setFontSize(12);
++                doc.text(`${row.name} - S:${row.s}, O:${row.o}, D:${row.d}, RPN:${row.rpn}`, 10, y);
++                y += 10;
++                if (y > 280) {
++                    doc.addPage();
++                    y = 10;
++                }
++            });
++            doc.save('fmea_report.pdf');
++        }
++    </script>
++</body>
++</html>
+\ No newline at end of file
+-- 
+2.50.1
+

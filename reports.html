@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Reports</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th, td { border: 1px solid black; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+    <h1>FMEA Reports</h1>
+    <a href="/">Data Entry Form</a> | <a href="/dashboard">Dashboard</a>
+    <button onclick="exportToPDF()">Export to PDF</button>
+    <button onclick="exportToCSV()">Export to Excel (CSV)</button>
+    <h2>Failure Modes Table</h2>
+    <table>
+        <tr>
+            <th>Failure Mode</th>
+            <th>S</th>
+            <th>O</th>
+            <th>D</th>
+            <th>RPN</th>
+        </tr>
+        {% for mode in data %}
+        <tr>
+            <td>{{ mode['Failure Mode'] }}</td>
+            <td>{{ mode['S'] }}</td>
+            <td>{{ mode['O'] }}</td>
+            <td>{{ mode['D'] }}</td>
+            <td>{{ mode['RPN'] }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    <h2>Statistical Summary</h2>
+    <p>Average: {{ stats['average'] }}</p>
+    <p>Maximum: {{ stats['max'] }}</p>
+    <p>Minimum: {{ stats['min'] }}</p>
+    <p>Number of High Risks (>60): {{ stats['high_risk'] }}</p>
+    <script>
+        // Create a JSON-safe representation of the data for JS
+        const data = {{ data | tojson }} || [];
+
+        // Normalize fields to friendly names (in case keys contain spaces)
+        const normalizedData = data.map(item => ({
+            name: item['Failure Mode'] || item.failure_mode || '',
+            s: item.S ?? item.s ?? item['S'] ?? 0,
+            o: item.O ?? item.o ?? item['O'] ?? 0,
+            d: item.D ?? item.d ?? item['D'] ?? 0,
+            rpn: item.RPN ?? item.rpn ?? item['RPN'] ?? 0
+        }));
+
+        function exportToCSV() {
+            let csv = 'Failure Mode,S,O,D,RPN\n';
+            normalizedData.forEach(row => {
+                csv += `${row.name},${row.s},${row.o},${row.d},${row.rpn}\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'fmea_report.csv';
+            a.click();
+        }
+
+        function exportToPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+            doc.setFontSize(16);
+            doc.text('FMEA Report', 105, 20, { align: 'center' });
+            let y = 30;
+            normalizedData.forEach(row => {
+                doc.setFontSize(12);
+                doc.text(`${row.name} - S:${row.s}, O:${row.o}, D:${row.d}, RPN:${row.rpn}`, 10, y);
+                y += 10;
+                if (y > 280) {
+                    doc.addPage();
+                    y = 10;
+                }
+            });
+            doc.save('fmea_report.pdf');
+        }
+    </script>
+</body>
+</html>

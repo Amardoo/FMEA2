@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th, td { border: 1px solid black; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .chart-container { width: 50%; margin: 20px auto; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <h1>FMEA Dashboard</h1>
+    <a href="/">Data Entry Form</a> | <a href="/reports">Reports</a>
+    <h2>Failure Modes Table</h2>
+    <table>
+        <tr>
+            <th>Failure Mode</th>
+            <th>S</th>
+            <th>O</th>
+            <th>D</th>
+            <th>RPN</th>
+        </tr>
+        {% for mode in data %}
+        <tr style="background-color: {% if mode['RPN'] <= 30 %}#90ee90{% elif mode['RPN'] <= 60 %}#ffff99{% else %}#ffcccc{% endif %};">
+            <td>{{ mode['Failure Mode'] }}</td>
+            <td>{{ mode['S'] }}</td>
+            <td>{{ mode['O'] }}</td>
+            <td>{{ mode['D'] }}</td>
+            <td>{{ mode['RPN'] }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    <div class="chart-container">
+        <canvas id="top5Chart"></canvas>
+    </div>
+    <div class="chart-container">
+        <canvas id="riskChart"></canvas>
+    </div>
+    <script>
+        // Prepare JSON-safe arrays for charts
+        const top5Labels = {{ top_5 | map(attribute='Failure Mode') | list | tojson }} || [];
+        // truncate labels to 20 chars for display
+        const top5LabelsShort = top5Labels.map(l => (typeof l === 'string' && l.length > 20) ? l.slice(0, 17) + '...' : l);
+        const top5Data = {{ top_5 | map(attribute='RPN') | list | tojson }} || [];
+
+        const top5Ctx = document.getElementById('top5Chart').getContext('2d');
+        new Chart(top5Ctx, {
+            type: 'bar',
+            data: {
+                labels: top5LabelsShort,
+                datasets: [{
+                    label: 'Top 5 RPN',
+                    data: top5Data,
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: { scales: { y: { beginAtZero: true } } }
+        });
+
+        const riskDist = {{ risk_dist | tojson }} || { 'Low (0-30)': 0, 'Medium (31-60)': 0, 'High (>60)': 0 };
+        const riskCtx = document.getElementById('riskChart').getContext('2d');
+        new Chart(riskCtx, {
+            type: 'pie',
+            data: {
+                labels: ['Low (0-30)', 'Medium (31-60)', 'High (>60)'],
+                datasets: [{
+                    data: [riskDist['Low (0-30)'] || 0, riskDist['Medium (31-60)'] || 0, riskDist['High (>60)'] || 0],
+                    backgroundColor: ['#90ee90', '#ffff99', '#ffcccc']
+                }]
+            }
+        });
+    </script>
+</body>
+</html>
