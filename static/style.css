@@ -1,0 +1,68 @@
+/* Enhanced style for Dashboard, Form, and Reports */
+body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #f4f6f8;
+    margin: 0;
+    padding: 0;
+    color: #222;
+}
+.container {
+    max-width: 900px;
+    margin: 40px auto;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    padding: 32px;
+}
+h1, h2, h3 {
+    color: #2a4d69;
+    margin-bottom: 16px;
+}
+button, input[type="submit"] {
+    background: #2a4d69;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    padding: 10px 20px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+button:hover, input[type="submit"]:hover {
+    background: #1e3550;
+}
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 24px;
+}
+table th, table td {
+    border: 1px solid #e0e0e0;
+    padding: 10px;
+    text-align: left;
+}
+table th {
+    background: #e9f1f7;
+    color: #2a4d69;
+}
+form label {
+    display: block;
+    margin-top: 16px;
+    margin-bottom: 6px;
+    font-weight: 500;
+}
+form input, form select, form textarea {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #bfc9d1;
+    border-radius: 4px;
+    margin-bottom: 12px;
+    font-size: 1rem;
+}
+.alert {
+    background: #ffe0e0;
+    color: #a94442;
+    padding: 12px;
+    border-radius: 5px;
+    margin-bottom: 20px;
+}
