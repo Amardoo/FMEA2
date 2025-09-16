@@ -8,7 +8,11 @@
 </head>
 <body>
     <h1>FMEA Dashboard</h1>
-    <a href="/">Data Entry Form</a> | <a href="/reports">Reports</a>
+    <div style="margin-bottom: 16px;">
+        <a href="/home"><button class="back-home-btn">Back Home</button></a>
+        <a href="/form"><button>Data Entry Form</button></a>
+        <a href="/reports"><button>Reports</button></a>
+    </div>
     <h2>Failure Modes Table</h2>
     <table>
         <tr>
@@ -28,18 +32,33 @@
         </tr>
         {% endfor %}
     </table>
-    <div class="chart-container">
-        <canvas id="top5Chart"></canvas>
+    <!-- Top 5 Risks Section -->
+    <h2 style="margin-top:32px;">Top 5 Risks</h2>
+    <div class="top5-container">
+        {% for mode in top_5 %}
+        <div class="top5-card" style="display:inline-block;vertical-align:top;margin:8px 12px;padding:16px 20px;background:#fff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);min-width:160px;text-align:center;">
+            <div style="font-size:1.1em;font-weight:600;color:#c0392b;">{{ mode['Failure Mode'] }}</div>
+            <div style="margin:8px 0;font-size:1.3em;color:#2a4d69;">RPN: {{ mode['RPN'] }}</div>
+            <div style="font-size:0.95em;color:#555;">S: {{ mode['S'] }} | O: {{ mode['O'] }} | D: {{ mode['D'] }}</div>
+        </div>
+        {% endfor %}
     </div>
-    <div class="chart-container">
-        <canvas id="riskChart"></canvas>
+    <div class="chart-row" style="display:flex;flex-wrap:wrap;gap:32px;margin-top:32px;justify-content:center;align-items:flex-start;">
+        <div class="chart-container" style="flex:1;min-width:320px;max-width:480px;background:#fff;padding:24px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+            <h3 style="text-align:center;">Top 5 RPN Chart</h3>
+            <canvas id="top5Chart"></canvas>
+        </div>
+        <div class="chart-container" style="flex:1;min-width:320px;max-width:480px;background:#fff;padding:24px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+            <h3 style="text-align:center;">Risk Distribution Chart</h3>
+            <canvas id="riskChart"></canvas>
+        </div>
     </div>
     <script>
         // Prepare JSON-safe arrays for charts
-        const top5Labels = {{ top_5 | map(attribute='Failure Mode') | list | tojson }} || [];
+        const top5Labels = {{ top_5 | map(attribute='Failure Mode') | list | tojson | safe }};
         // truncate labels to 20 chars for display
         const top5LabelsShort = top5Labels.map(l => (typeof l === 'string' && l.length > 20) ? l.slice(0, 17) + '...' : l);
-        const top5Data = {{ top_5 | map(attribute='RPN') | list | tojson }} || [];
+        const top5Data = {{ top_5 | map(attribute='RPN') | list | tojson | safe }};
 
         const top5Ctx = document.getElementById('top5Chart').getContext('2d');
         new Chart(top5Ctx, {
@@ -51,13 +70,17 @@
                     data: top5Data,
                     backgroundColor: 'rgba(54, 162, 235, 0.2)',
                     borderColor: 'rgba(54, 162, 235, 1)',
-                    borderWidth: 1
+                    borderWidth: 2
                 }]
             },
-            options: { scales: { y: { beginAtZero: true } } }
+            options: {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, title: { display: true, text: 'RPN' } } }
+            }
         });
 
-        const riskDist = {{ risk_dist | tojson }} || { 'Low (0-30)': 0, 'Medium (31-60)': 0, 'High (>60)': 0 };
+        const riskDist = {{ risk_dist | tojson | safe }};
         const riskCtx = document.getElementById('riskChart').getContext('2d');
         new Chart(riskCtx, {
             type: 'pie',
@@ -67,6 +90,10 @@
                     data: [riskDist['Low (0-30)'] || 0, riskDist['Medium (31-60)'] || 0, riskDist['High (>60)'] || 0],
                     backgroundColor: ['#90ee90', '#ffff99', '#ffcccc']
                 }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { position: 'bottom' } }
             }
         });
     </script>

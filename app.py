@@ -4,11 +4,21 @@
 # Run with: python app.py
 # Access at: http://127.0.0.1:5000/
 
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, redirect, url_for
 import sqlite3
 import pandas as pd
 
 app = Flask(__name__)
+
+# Home page route
+@app.route('/home')
+def home():
+    return render_template('home.html')
+
+# Redirect root URL to /home
+@app.route('/')
+def root():
+    return redirect(url_for('home'))
 
 # Initialize database
 def init_db():
@@ -45,7 +55,7 @@ def get_stats(data):
     high_risk = len(df[df['RPN'] > 60])
     return {'average': round(avg_rpn, 2), 'max': max_rpn, 'min': min_rpn, 'high_risk': high_risk}
 
-@app.route('/', methods=['GET', 'POST'])
+@app.route('/form', methods=['GET', 'POST'])
 def form():
     if request.method == 'POST':
         name = request.form['failure_mode']

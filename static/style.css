@@ -1,4 +1,20 @@
-/* Enhanced style for Dashboard, Form, and Reports */
+/* Enhanced style for Dashboard, Form, Reports, and Home */
+/* Back Home button style */
+.back-home-btn {
+    background: #f9a825;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    padding: 10px 20px;
+    font-size: 1rem;
+    cursor: pointer;
+    margin-right: 12px;
+    box-shadow: 0 2px 6px rgba(249,168,37,0.15);
+    transition: background 0.2s;
+}
+.back-home-btn:hover {
+    background: #c17900;
+}
 body {
     font-family: 'Segoe UI', Arial, sans-serif;
     background: #f4f6f8;
