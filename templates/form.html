@@ -2,29 +2,65 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>FMEA Data Entry Form</title>
+    <title>Add Failure Mode</title>
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <h1>FMEA Data Entry Form</h1>
     <div style="margin-bottom: 16px;">
         <a href="/home"><button class="back-home-btn">Back Home</button></a>
         <a href="/dashboard"><button>Dashboard</button></a>
         <a href="/reports"><button>Reports</button></a>
     </div>
-    <form method="post">
-        <label for="failure_mode">Failure Mode:</label>
-        <input type="text" id="failure_mode" name="failure_mode" required>
-        <label for="severity">Severity (1-10):</label>
-        <input type="number" id="severity" name="severity" min="1" max="10" required>
-        <label for="occurrence">Occurrence (1-10):</label>
-        <input type="number" id="occurrence" name="occurrence" min="1" max="10" required>
-        <label for="detectability">Detection (1-10):</label>
-        <input type="number" id="detectability" name="detectability" min="1" max="10" required>
-        <button type="submit">Calculate RPN</button>
-    </form>
-    {% if error %}
-        <p class="error">{{ error }}</p>
-    {% endif %}
+    <div class="form-container">
+        <h2>Add Failure Mode Entry</h2>
+        <form method="POST">
+            <!-- 1. Process Step (Dropdown) -->
+            <label for="step">Process Step:</label>
+            <select name="step" id="step" required>
+                <option value="">-- Select Step --</option>
+                <option>Ordering blood request</option>
+                <option>Patient identification</option>
+                <option>Sampling</option>
+                <option>Labeling</option>
+                <option>Analysis of blood sample</option>
+                <option>Issuing blood components</option>
+                <option>Transfusing blood components</option>
+            </select>
+
+            <!-- 2. Failure Mode -->
+            <label for="failure_mode">Failure Mode:</label>
+            <input type="text" id="failure_mode" name="failure_mode" placeholder="e.g. Incorrect patient identification" required>
+
+            <!-- 3. Cause(s) of Failure -->
+            <label for="cause">Cause(s) of Failure:</label>
+            <input type="text" id="cause" name="cause" placeholder="e.g. Patients with same name" required>
+
+            <!-- 4. Current Control -->
+            <label for="control">Current Control:</label>
+            <input type="text" id="control" name="control" placeholder="e.g. Double-check ID bracelet" required>
+
+             <!-- 5. Potential Effect(s) of Failure -->
+            <label for="effect">Potential Effect(s) of Failure:</label>
+            <input type="text" id="effect" name="effect" placeholder="e.g. Delay in treatment" required>
+
+
+            <!-- 6. Severity -->
+            <label for="severity">Severity (1–10):</label>
+            <input type="number" id="severity" name="severity" min="1" max="10" required>
+
+            <!-- 7. Occurrence -->
+            <label for="occurrence">Occurrence (1–10):</label>
+            <input type="number" id="occurrence" name="occurrence" min="1" max="10" required>
+
+            <!-- 8. Detection -->
+            <label for="detection">Detection (1–10):</label>
+            <input type="number" id="detection" name="detection" min="1" max="10" required>
+
+            <button type="submit">Submit</button>
+        </form>
+        {% if error %}
+            <p class="error">{{ error }}</p>
+        {% endif %}
+    </div>
 </body>
 </html>

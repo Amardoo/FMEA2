@@ -26,7 +26,10 @@ def init_db():
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS failure_modes
                  (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  step TEXT,
                   failure_mode TEXT,
+                  cause TEXT,
+                  control TEXT,
                   s INTEGER,
                   o INTEGER,
                   d INTEGER,
@@ -38,9 +41,19 @@ def init_db():
 def get_all_data():
     conn = sqlite3.connect('fmea.db')
     c = conn.cursor()
-    c.execute('SELECT id, failure_mode, s, o, d, rpn FROM failure_modes ORDER BY rpn DESC')
+    c.execute('SELECT id, step, failure_mode, cause, control, s, o, d, rpn FROM failure_modes ORDER BY rpn DESC')
     rows = c.fetchall()
-    data = [{'id': row[0], 'Failure Mode': row[1], 'S': row[2], 'O': row[3], 'D': row[4], 'RPN': row[5]} for row in rows]
+    data = [{
+        'id': row[0],
+        'Step': row[1],
+        'Failure Mode': row[2],
+        'Cause': row[3],
+        'Control': row[4],
+        'S': row[5],
+        'O': row[6],
+        'D': row[7],
+        'RPN': row[8]
+    } for row in rows]
     conn.close()
     return data
 
@@ -57,21 +70,36 @@ def get_stats(data):
 
 @app.route('/form', methods=['GET', 'POST'])
 def form():
+    error = None
     if request.method == 'POST':
-        name = request.form['failure_mode']
-        s = int(request.form['severity'])
-        o = int(request.form['occurrence'])
-        d = int(request.form['detectability'])
+        step = request.form.get('step')
+        failure_mode = request.form.get('failure_mode')
+        cause = request.form.get('cause')
+        control = request.form.get('control')
+        try:
+            s = int(request.form.get('severity'))
+            o = int(request.form.get('occurrence'))
+            d = int(request.form.get('detection'))
+        except (TypeError, ValueError):
+            error = 'Severity, Occurrence, and Detection must be numbers between 1 and 10.'
+            return render_template('form.html', error=error)
+
+        if not all([step, failure_mode, cause, control, s, o, d]):
+            error = 'All fields are required.'
+            return render_template('form.html', error=error)
         if not (1 <= s <= 10 and 1 <= o <= 10 and 1 <= d <= 10):
-            return render_template('form.html', error='Values must be between 1 and 10')
+            error = 'Values must be between 1 and 10.'
+            return render_template('form.html', error=error)
+
         rpn = s * o * d
         conn = sqlite3.connect('fmea.db')
         c = conn.cursor()
-        c.execute('INSERT INTO failure_modes (failure_mode, s, o, d, rpn) VALUES (?, ?, ?, ?, ?)',
-                  (name, s, o, d, rpn))
+        c.execute('INSERT INTO failure_modes (step, failure_mode, cause, control, s, o, d, rpn) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                  (step, failure_mode, cause, control, s, o, d, rpn))
         conn.commit()
         conn.close()
-    return render_template('form.html')
+        return redirect(url_for('form'))
+    return render_template('form.html', error=error)
 
 @app.route('/dashboard')
 def dashboard():
